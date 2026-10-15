@@ -17,8 +17,19 @@
 - `index.html`、`style.css`、`site.js`：项目介绍页和下载按钮
 - `extension/manifest.json`、`extension/background.js`：浏览器扩展入口
 - `extension/app/`：旅行规划器网页应用
+- `extension-source/`：React + Vite 源码；可在此修改功能并重新构建
 - `downloads/trip-planner-extension.zip`：介绍页下载的安装包
 - `.github/workflows/pages.yml`：GitHub Pages 自动部署流程
+
+## 修改与重新构建扩展
+
+```powershell
+cd extension-source
+npm install
+npm run build
+```
+
+构建结果会直接写入 `extension/app/`。修改完成后重新压缩 `extension/` 文件夹，并更新 `downloads/trip-planner-extension.zip`，提交到 `main` 即可更新网站。
 
 ## 限制
 
