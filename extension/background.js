@@ -21,7 +21,7 @@ async function generateRoute(trip) {
   } catch {
     return { ok: false, error: '读取路线服务配置失败，请检查网络后重试。' };
   }
-  if (!/^https:\/\/[a-z0-9-]+\.workers\.dev$/i.test(apiBase)) {
+  if (!/^https:\/\/[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev$/i.test(apiBase)) {
     return { ok: false, error: '路线服务还在部署配置中，请稍后再试。' };
   }
   const clientId = await getClientId();
