@@ -6,7 +6,7 @@
 
 发布后访问：`https://ermei159.github.io/trip-planner-extension/`
 
-网页的“下载扩展”按钮会下载本仓库 ZIP 压缩包。解压后，在 Chrome 打开 `chrome://extensions`，开启“开发者模式”，点击“加载已解压的扩展程序”，选择压缩包中的 `extension` 文件夹。Edge 用户可在 `edge://extensions` 完成相同步骤。
+网页的“下载扩展”按钮会下载本仓库 ZIP 压缩包。解压后，在 Chrome 打开 `chrome://extensions`，开启“开发者模式”，点击“加载已解压的扩展程序”，选择解压后直接包含 `manifest.json` 的文件夹（本项目 ZIP 顶层就是扩展目录）。Edge 用户可在 `edge://extensions` 完成相同步骤。
 
 ## 使用高德生成路线
 
