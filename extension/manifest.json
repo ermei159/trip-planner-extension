@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "从浏览器工具栏打开你的多日旅行规划工作台。",
   "permissions": ["storage"],
-  "host_permissions": ["https://restapi.amap.com/*"],
+  "host_permissions": ["https://*.workers.dev/*", "https://ermei159.github.io/*"],
   "background": { "service_worker": "background.js" },
   "action": { "default_title": "打开行间旅行规划" }
 }

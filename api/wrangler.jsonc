@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "trip-planner-route-api",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-15",
+  "ratelimits": [
+    {
+      "name": "IP_RATE_LIMIT",
+      "namespace_id": "2026101501",
+      "simple": { "limit": 30, "period": 60 }
+    },
+    {
+      "name": "CLIENT_RATE_LIMIT",
+      "namespace_id": "2026101502",
+      "simple": { "limit": 12, "period": 60 }
+    }
+  ]
+}

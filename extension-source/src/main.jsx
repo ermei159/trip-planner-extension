@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MapPin, Compass, Bookmark, Plus, Share2, CloudSun, ChevronRight, Clock3, Utensils, TrainFront, MoreHorizontal, ArrowUpRight, Check, Search, Menu, X, Pencil, Trash2, Sparkles, Settings } from 'lucide-react';
+import { MapPin, Compass, Bookmark, Plus, Share2, CloudSun, ChevronRight, Clock3, Utensils, TrainFront, MoreHorizontal, ArrowUpRight, Check, Search, Menu, X, Pencil, Trash2, Sparkles } from 'lucide-react';
 import './styles.css';
 
 const days = [
@@ -68,16 +68,15 @@ function runtimeMessage(message){
 
 function PlannerDialog({dialog,onClose,onSave}){
   const isSpot=dialog.type==='editSpot'||dialog.type==='addSpot';
-  const initial=dialog.type==='create'?{title:'',origin:'',destination:'',focus:'历史与美食',startDate:today(),dayCount:3,transportMode:'walking'}:dialog.type==='editTrip'?{title:dialog.trip.title,origin:dialog.trip.origin||'',destination:dialog.trip.destination||'',focus:dialog.trip.focus||'',startDate:dialog.trip.startDate||today(),dayLabels:dialog.trip.days.map(d=>d.label).join('\n'),transportMode:dialog.trip.transportMode||'walking'}:dialog.type==='apiSettings'?{apiKey:''}:{name:dialog.spot?.name||'',time:dialog.spot?.time||'09:00',detail:dialog.spot?.detail||'',tag:dialog.spot?.tag||'',type:dialog.spot?.type||'temple'};
+  const initial=dialog.type==='create'?{title:'',origin:'',destination:'',focus:'历史与美食',startDate:today(),dayCount:3,transportMode:'walking'}:dialog.type==='editTrip'?{title:dialog.trip.title,origin:dialog.trip.origin||'',destination:dialog.trip.destination||'',focus:dialog.trip.focus||'',startDate:dialog.trip.startDate||today(),dayLabels:dialog.trip.days.map(d=>d.label).join('\n'),transportMode:dialog.trip.transportMode||'walking'}:{name:dialog.spot?.name||'',time:dialog.spot?.time||'09:00',detail:dialog.spot?.detail||'',tag:dialog.spot?.tag||'',type:dialog.spot?.type||'temple'};
   const [form,setForm]=useState(initial);
   const change=(key,value)=>setForm(old=>({...old,[key]:value}));
   useEffect(()=>{const esc=e=>{if(e.key==='Escape')onClose()};window.addEventListener('keydown',esc);return()=>window.removeEventListener('keydown',esc)},[onClose]);
-  const title=dialog.type==='create'?'创建行程并生成路线':dialog.type==='editTrip'?'编辑行程':dialog.type==='apiSettings'?'设置高德 API':'地点信息';
+  const title=dialog.type==='create'?'创建行程并生成路线':dialog.type==='editTrip'?'编辑行程':'地点信息';
   return <div className="dialog-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><section className="planner-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><header><div><small>行间 · 行程工作台</small><h2 id="dialog-title">{title}</h2></div><button type="button" className="dialog-close" onClick={onClose} aria-label="关闭"><X size={19}/></button></header><form onSubmit={e=>{e.preventDefault();onSave(form)}}><div className="dialog-fields">
-    {dialog.type==='apiSettings'?<><label>高德 Web 服务 API Key<input required autoFocus type="password" autoComplete="off" value={form.apiKey} onChange={e=>change('apiKey',e.target.value)} placeholder="粘贴你申请的 Web 服务 Key"/></label><p className="api-key-note">Key 只保存在此浏览器扩展的本地存储中，不会写入项目文件或上传到 GitHub。请使用“Web 服务”类型的 Key。</p><a className="api-doc-link" href="https://lbs.amap.com/" target="_blank" rel="noreferrer">前往高德开放平台申请 Key ↗</a></>
-    :isSpot?<><label>地点名称<input required autoFocus maxLength="40" value={form.name} onChange={e=>change('name',e.target.value)} placeholder="例如：滕王阁"/></label><div className="dialog-row"><label>到达时间<input type="time" value={form.time} onChange={e=>change('time',e.target.value)}/></label><label>地点类型<select value={form.type} onChange={e=>change('type',e.target.value)}><option value="temple">历史景点</option><option value="lake">街区 / 风景</option><option value="food">美食停留</option></select></label></div><label>地址与备注<textarea rows="3" value={form.detail} onChange={e=>change('detail',e.target.value)} placeholder="地址、建议停留时间等"/></label><label>标签<input maxLength="40" value={form.tag} onChange={e=>change('tag',e.target.value)} placeholder="例如：历史古迹"/></label></>
+    {isSpot?<><label>地点名称<input required autoFocus maxLength="40" value={form.name} onChange={e=>change('name',e.target.value)} placeholder="例如：滕王阁"/></label><div className="dialog-row"><label>到达时间<input type="time" value={form.time} onChange={e=>change('time',e.target.value)}/></label><label>地点类型<select value={form.type} onChange={e=>change('type',e.target.value)}><option value="temple">历史景点</option><option value="lake">街区 / 风景</option><option value="food">美食停留</option></select></label></div><label>地址与备注<textarea rows="3" value={form.detail} onChange={e=>change('detail',e.target.value)} placeholder="地址、建议停留时间等"/></label><label>标签<input maxLength="40" value={form.tag} onChange={e=>change('tag',e.target.value)} placeholder="例如：历史古迹"/></label></>
     :<><label>行程名称<input required autoFocus maxLength="40" value={form.title} onChange={e=>change('title',e.target.value)} placeholder="例如：南昌一日游"/></label><div className="dialog-row"><label>出发地<input required maxLength="40" value={form.origin} onChange={e=>change('origin',e.target.value)} placeholder="例如：大连"/></label><label>目的地城市<input required maxLength="40" value={form.destination} onChange={e=>change('destination',e.target.value)} placeholder="例如：南昌"/></label></div><div className="dialog-row"><label>出发日期<input required type="date" value={form.startDate} onChange={e=>change('startDate',e.target.value)}/></label><label>旅行主题<input maxLength="30" value={form.focus} onChange={e=>change('focus',e.target.value)} placeholder="历史与美食"/></label></div>{dialog.type==='create'?<><div className="dialog-row"><label>行程天数<select value={form.dayCount} onChange={e=>change('dayCount',Number(e.target.value))}>{[1,2,3,4,5,6,7].map(n=><option value={n} key={n}>{n} 天</option>)}</select></label><label>市内交通<select value={form.transportMode} onChange={e=>change('transportMode',e.target.value)}><option value="walking">步行优先</option><option value="driving">驾车优先</option></select></label></div><p className="api-key-note">保存后会调用高德搜索目的地景点和美食，并按地点距离规划每天顺序。</p></>:<><div className="dialog-row"><label>市内交通<select value={form.transportMode} onChange={e=>change('transportMode',e.target.value)}><option value="walking">步行优先</option><option value="driving">驾车优先</option></select></label><span/></div><label>每天的标题<textarea rows="3" value={form.dayLabels} onChange={e=>change('dayLabels',e.target.value)} placeholder="每行填写一天的标题"/><small className="field-help">修改目的地或日期后，可点击“重新生成高德路线”刷新地点。</small></label></>}</>}
-    </div><footer><button type="button" className="dialog-cancel" onClick={onClose}>取消</button><button type="submit" className="dialog-save">{dialog.type==='create'?'生成路线':dialog.type==='apiSettings'?'保存 Key':dialog.type==='addSpot'?'添加地点':'保存'}</button></footer></form></section></div>
+    </div><footer><button type="button" className="dialog-cancel" onClick={onClose}>取消</button><button type="submit" className="dialog-save">{dialog.type==='create'?'生成路线':dialog.type==='addSpot'?'添加地点':'保存'}</button></footer></form></section></div>
 }
 
 function App(){
@@ -90,14 +89,11 @@ function App(){
   const [menuOpen,setMenuOpen]=useState(false);
   const [mapOpen,setMapOpen]=useState(false);
   const [dialog,setDialog]=useState(null);
-  const [apiConfigured,setApiConfigured]=useState(false);
   const [generating,setGenerating]=useState(false);
-  const [pendingRoute,setPendingRoute]=useState(null);
   const trip=trips.find(t=>t.id===tripId)||trips[0];
   const day=Math.min(dayIndex,trip.days.length-1);
   const current=trip.days[day];
   const displaySpots=current.spots||[];
-  useEffect(()=>{runtimeMessage({type:'GET_AMAP_CONFIG'}).then(result=>setApiConfigured(Boolean(result.ok&&result.configured)))},[]);
   function notify(message){setNotice(message);window.clearTimeout(notify.timer);notify.timer=window.setTimeout(()=>setNotice(''),2300)}
   function persist(next,message){setTrips(next);try{localStorage.setItem('xingjian-trips',JSON.stringify(next))}catch{}if(message)notify(message)}
   function chooseTrip(id){setTripId(id);setDayIndex(0);setSelected(0);setMenuOpen(false)}
@@ -106,15 +102,10 @@ function App(){
   function updateDay(dayNo,updater,message){updateTrip(trip.id,t=>({...t,days:t.days.map((d,i)=>i===dayNo?updater(d):d)}),message)}
   async function generateRoute(target=trip,base=trips){
     if(!target.destination){notify('请先编辑行程并填写目的地城市。');setDialog({type:'editTrip',trip:target});return}
-    const config=await runtimeMessage({type:'GET_AMAP_CONFIG'});
-    if(!config.ok){notify(config.error||'请在已安装的浏览器扩展中使用高德路线生成。');return}
-    setApiConfigured(Boolean(config.configured));
-    if(!config.configured){setPendingRoute({target,base});setDialog({type:'apiSettings'});return}
     setGenerating(true);notify('正在查询高德景点并规划路线…');
     try{
       const response=await runtimeMessage({type:'GENERATE_ROUTE',trip:{...target,dayCount:target.dayCount||target.days.length}});
       if(!response.ok){
-        if(response.code==='KEY_REQUIRED'){setPendingRoute({target,base});setDialog({type:'apiSettings'});}
         notify(response.error||'路线生成失败，请稍后重试。');return;
       }
       const updated=base.map(t=>t.id===target.id?{...t,days:response.days,generatedAt:new Date().toISOString()}:t);
@@ -124,13 +115,6 @@ function App(){
     finally{setGenerating(false)}
   }
   async function saveDialog(form){
-    if(dialog.type==='apiSettings'){
-      const response=await runtimeMessage({type:'SAVE_AMAP_CONFIG',apiKey:form.apiKey});
-      if(!response.ok){notify(response.error||'保存高德 Key 失败');return}
-      setApiConfigured(true);setDialog(null);notify('高德 Key 已安全保存在此扩展中');
-      if(pendingRoute){const pending=pendingRoute;setPendingRoute(null);await generateRoute(pending.target,pending.base)}
-      return;
-    }
     if(dialog.type==='create'){
       const count=Math.max(1,Math.min(7,Number(form.dayCount)||1));
       const created={id:makeId(),title:form.title.trim(),origin:form.origin.trim(),destination:form.destination.trim(),startDate:form.startDate,dayCount:count,transportMode:form.transportMode,focus:form.focus.trim()||'历史与美食',days:Array.from({length:count},(_,i)=>makeBlankDay(i))};
@@ -165,7 +149,7 @@ function App(){
     </aside>
     {menuOpen&&<button className="scrim" onClick={()=>setMenuOpen(false)} aria-label="关闭菜单"/>}
     <main id="top" className="main-area">
-      <header className="topbar"><button className="mobile-menu icon-button" onClick={()=>setMenuOpen(!menuOpen)} aria-label="打开菜单">{menuOpen?<X size={20}/>:<Menu size={20}/>}</button><div className="breadcrumbs">我的行程 <ChevronRight size={14}/> <span>{trip.title}</span></div><div className="top-actions"><button className="gaode-settings" onClick={()=>setDialog({type:'apiSettings'})} title={apiConfigured?'高德 API 已配置':'配置高德 API'}><Settings size={15}/><span>高德设置</span>{apiConfigured&&<i/>}</button><button className={'icon-button save-button '+(saved?'is-saved':'')} onClick={()=>setSaved(!saved)} aria-label={saved?'取消收藏':'收藏行程'}><Bookmark size={17} fill={saved?'currentColor':'none'}/></button><button className="share-button" onClick={share}><Share2 size={15}/>分享行程</button></div></header>
+      <header className="topbar"><button className="mobile-menu icon-button" onClick={()=>setMenuOpen(!menuOpen)} aria-label="打开菜单">{menuOpen?<X size={20}/>:<Menu size={20}/>}</button><div className="breadcrumbs">我的行程 <ChevronRight size={14}/> <span>{trip.title}</span></div><div className="top-actions"><button className={'icon-button save-button '+(saved?'is-saved':'')} onClick={()=>setSaved(!saved)} aria-label={saved?'取消收藏':'收藏行程'}><Bookmark size={17} fill={saved?'currentColor':'none'}/></button><button className="share-button" onClick={share}><Share2 size={15}/>分享行程</button></div></header>
       <div className="content-wrap">
         <section className="trip-heading"><div><h1>{trip.title}</h1><div className="trip-meta"><span><Clock3 size={15}/>{trip.startDate||'日期待定'} · {trip.days.length} 天</span><i/><span><MapPin size={15}/>{trip.origin||'出发地'} → {trip.destination||'目的地'}</span><i/><span>{trip.focus||'自由探索'}</span></div></div><div className="trip-heading-actions"><button className="edit-button" onClick={()=>setDialog({type:'editTrip',trip})}>编辑行程 <Pencil size={14}/></button><button className="generate-button" title="重新生成高德路线" aria-label="重新生成高德路线" onClick={()=>generateRoute()} disabled={generating}><Sparkles size={15}/>{generating?'正在生成…':'重新生成路线'}</button></div></section>
         <section className="day-tabs" aria-label="选择游览日期">{trip.days.map((d,i)=><button className={'day-tab '+(day===i?'active':'')} onClick={()=>chooseDay(i)} key={i}><span className="day-number">{String(i+1).padStart(2,'0')}</span><span className="day-tab-copy"><b>{d.label}</b><small>{d.date}</small></span>{day===i&&<span className="tab-marker"/>}</button>)}</section>

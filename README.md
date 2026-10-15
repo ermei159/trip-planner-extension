@@ -10,7 +10,19 @@
 
 ## 使用高德生成路线
 
-首次创建行程时，填写出发地、目的地城市、日期、天数和偏好。扩展会搜索目的地景点与美食，按地点距离安排顺序，并查询相邻停留点之间的步行或驾车路线。首次使用会提示设置高德开放平台的 **Web 服务 API Key**；也可在扩展右上角“高德设置”中填写。Key 只存储在当前浏览器扩展的本地存储中，不会上传到本仓库。已配置 Codex 的 GaoDe MCP 连接不能直接被已下载的浏览器扩展调用，因此这里使用高德 Web 服务 API。
+首次创建行程时，填写出发地、目的地城市、日期、天数和偏好。扩展会通过项目后端使用高德 Web 服务 API，搜索目的地景点与美食，按地点距离安排顺序，并查询相邻停留点之间的步行或驾车路线。用户无需申请或填写 Key；高德 Key 只配置在后端 Secret 中，不会进入扩展或公开仓库。
+
+## 部署路线 API
+
+后端使用 Cloudflare Worker。进入 `api/` 后运行：
+
+```powershell
+npx wrangler login
+npx wrangler deploy
+npx wrangler secret put AMAP_KEY
+```
+
+`secret put` 会提示输入 Key。部署完成后，将 Worker 的 `workers.dev` 地址填入 `api-config.json` 的 `apiBase` 并推送到 `main`。扩展会从介绍网站读取这个公开服务地址，无需重新打包。Key 通过 Wrangler Secret 设置，不能写入源码或提交到 GitHub。Worker 对请求做了输入校验和基础频率限制；该限制是防止误用的第一层保护，不是精确的额度计量系统。
 
 ## 发布
 
@@ -19,7 +31,8 @@
 ## 项目结构
 
 - `index.html`、`style.css`、`site.js`：项目介绍页和下载按钮
-- `extension/manifest.json`、`extension/background.js`：浏览器扩展入口
+- `extension/manifest.json`、`extension/background.js`：浏览器扩展入口与后端请求
+- `api/worker.js`、`api/wrangler.jsonc`：高德路线 API 后端与部署配置
 - `extension/app/`：旅行规划器网页应用
 - `extension-source/`：React + Vite 源码；可在此修改功能并重新构建
 - `downloads/trip-planner-extension.zip`：介绍页下载的安装包
@@ -37,4 +50,4 @@ npm run build
 
 ## 限制
 
-扩展通过开发者模式安装，不是 Chrome Web Store 上架版。路线生成需要用户自己的高德 Web 服务 API Key，受高德账号的配额和 Key 设置限制。行程数据与 Key 保存在本地浏览器。
+扩展通过开发者模式安装，不是 Chrome Web Store 上架版。路线请求会使用项目所有者配置在 Worker Secret 中的高德 Key，调用量受该高德账号配额限制。行程数据保存在用户本地浏览器。
