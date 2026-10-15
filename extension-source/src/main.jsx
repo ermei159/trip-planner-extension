@@ -79,12 +79,23 @@ function PlannerDialog({dialog,onClose,onSave}){
     </div><footer><button type="button" className="dialog-cancel" onClick={onClose}>取消</button><button type="submit" className="dialog-save">{dialog.type==='create'?'生成路线':dialog.type==='addSpot'?'添加地点':'保存'}</button></footer></form></section></div>
 }
 
+function ProfileDialog({profile,onClose,onSave}){
+  const [name,setName]=useState(profile.name||'我的行程');
+  const [avatarText,setAvatarText]=useState(profile.avatarText||'林');
+  const [avatarImage,setAvatarImage]=useState(profile.avatarImage||'');
+  async function chooseImage(file){if(!file)return;if(!file.type.startsWith('image/'))return;const image=new Image();image.onload=()=>{const canvas=document.createElement('canvas');canvas.width=canvas.height=256;const ctx=canvas.getContext('2d');const size=Math.min(image.width,image.height);ctx.drawImage(image,(image.width-size)/2,(image.height-size)/2,size,size,0,0,256,256);setAvatarImage(canvas.toDataURL('image/jpeg',.82))};image.src=URL.createObjectURL(file)}
+  return <div className="dialog-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><section className="planner-dialog profile-dialog" role="dialog" aria-modal="true"><header><div><small>行间 · 个人空间</small><h2>编辑个人资料</h2></div><button className="dialog-close" onClick={onClose} aria-label="关闭"><X size={19}/></button></header><form onSubmit={e=>{e.preventDefault();onSave({name:name.trim()||'我的行程',avatarText:(name.trim()||'林').slice(0,1),avatarImage})}}><div className="profile-editor"><div className="profile-avatar-preview">{avatarImage?<img src={avatarImage} alt="头像预览"/>:avatarText}</div><div className="profile-avatar-actions"><label className="avatar-upload">更换头像<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>chooseImage(e.target.files?.[0])}/></label>{avatarImage&&<button type="button" className="avatar-remove" onClick={()=>setAvatarImage('')}>恢复文字头像</button>}<small>头像只保存在这台浏览器中</small></div></div><div className="dialog-fields"><label>显示名称<input autoFocus maxLength="24" required value={name} onChange={e=>setName(e.target.value)} placeholder="输入你的名字"/></label></div><footer><button type="button" className="dialog-cancel" onClick={onClose}>取消</button><button type="submit" className="dialog-save">保存资料</button></footer></form></section></div>
+}
+
 function App(){
   const [trips,setTrips]=useState(loadTrips);
   const [tripId,setTripId]=useState(()=>loadTrips()[0]?.id||'hangzhou');
   const [dayIndex,setDayIndex]=useState(0);
   const [selected,setSelected]=useState(0);
-  const [saved,setSaved]=useState(false);
+  const [view,setView]=useState('trips');
+  const [profile,setProfile]=useState(()=>{try{return {...{name:'我的行程',avatarText:'林',avatarImage:''},...JSON.parse(localStorage.getItem('xingjian-profile')||'{}')}}catch{return {name:'我的行程',avatarText:'林',avatarImage:''}}});
+  const [profileOpen,setProfileOpen]=useState(false);
+  const [profileMenu,setProfileMenu]=useState(false);
   const [notice,setNotice]=useState('');
   const [menuOpen,setMenuOpen]=useState(false);
   const [mapOpen,setMapOpen]=useState(false);
@@ -96,7 +107,10 @@ function App(){
   const displaySpots=current.spots||[];
   function notify(message){setNotice(message);window.clearTimeout(notify.timer);notify.timer=window.setTimeout(()=>setNotice(''),2300)}
   function persist(next,message){setTrips(next);try{localStorage.setItem('xingjian-trips',JSON.stringify(next))}catch{}if(message)notify(message)}
-  function chooseTrip(id){setTripId(id);setDayIndex(0);setSelected(0);setMenuOpen(false)}
+  function chooseTrip(id){setTripId(id);setDayIndex(0);setSelected(0);setMenuOpen(false);setView('trips')}
+  function toggleFavorite(){updateTrip(trip.id,t=>({...t,isFavorite:!t.isFavorite}),trip.isFavorite?'已从收藏夹移除':'已加入收藏夹')}
+  function saveProfile(next){setProfile(next);try{localStorage.setItem('xingjian-profile',JSON.stringify(next))}catch{}setProfileOpen(false);notify('个人资料已保存')}
+  function exportTrips(){const blob=new Blob([JSON.stringify({profile,trips},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='xingjian-trips.json';a.click();URL.revokeObjectURL(url);setProfileMenu(false);notify('行程数据已导出')}
   function chooseDay(i){setDayIndex(i);setSelected(0)}
   function updateTrip(id,updater,message){persist(trips.map(t=>t.id===id?updater(t):t),message)}
   function updateDay(dayNo,updater,message){updateTrip(trip.id,t=>({...t,days:t.days.map((d,i)=>i===dayNo?updater(d):d)}),message)}
@@ -141,16 +155,16 @@ function App(){
     <aside className={'sidebar '+(menuOpen?'open':'')}>
       <a className="brand" href="#top"><span className="brand-mark">行</span><span>行间</span></a>
       <div className="side-label">工作空间</div>
-      <nav className="main-nav"><button className="nav-item selected"><Compass size={18}/><span>我的行程</span><span className="nav-count">{trips.length}</span></button><button className="nav-item" onClick={()=>notify('灵感推荐即将开放')}><Search size={18}/><span>发现灵感</span></button><button className="nav-item" onClick={()=>notify('请在行程中点击书签收藏')}><Bookmark size={18}/><span>收藏夹</span></button></nav>
+      <nav className="main-nav"><button className={'nav-item '+(view==='trips'?'selected':'')} onClick={()=>setView('trips')}><Compass size={18}/><span>我的行程</span><span className="nav-count">{trips.length}</span></button><button className="nav-item" onClick={()=>notify('灵感推荐即将开放')}><Search size={18}/><span>发现灵感</span></button><button className={'nav-item '+(view==='favorites'?'selected':'')} onClick={()=>{setView('favorites');setMenuOpen(false)}}><Bookmark size={18}/><span>收藏夹</span><span className="nav-count">{trips.filter(t=>t.isFavorite).length||''}</span></button></nav>
       <div className="side-separator"/><div className="side-label">最近计划</div>
       {trips.map((t,i)=><button key={t.id} className={'recent-trip '+(t.id===trip.id?'current-trip':'')} onClick={()=>chooseTrip(t.id)}><span className={'trip-dot '+(i%2?'dot-blue':'')}/><span><b>{t.title}</b><small>{t.origin||'出发地'} → {t.destination||'目的地'} · {t.days.length} 天</small></span></button>)}
       <button className="new-trip" onClick={()=>setDialog({type:'create'})}><Plus size={16}/> 创建新行程</button>
-      <div className="sidebar-bottom"><div className="avatar">林</div><div><b>我的行程</b><small>保存在此浏览器</small></div><MoreHorizontal size={18}/></div>
+      <div className="sidebar-bottom"><button className="profile-trigger" onClick={()=>setProfileOpen(true)}><span className="avatar">{profile.avatarImage?<img src={profile.avatarImage} alt=""/>:profile.avatarText}</span><span className="profile-copy"><b>{profile.name}</b><small>保存在此浏览器</small></span></button><button className="profile-more" aria-label="更多账户选项" onClick={()=>setProfileMenu(v=>!v)}><MoreHorizontal size={18}/></button>{profileMenu&&<div className="profile-menu"><button onClick={()=>{setProfileOpen(true);setProfileMenu(false)}}><Pencil size={14}/>编辑个人资料</button><button onClick={exportTrips}><ArrowUpRight size={14}/>导出行程数据</button></div>}</div>
     </aside>
     {menuOpen&&<button className="scrim" onClick={()=>setMenuOpen(false)} aria-label="关闭菜单"/>}
     <main id="top" className="main-area">
-      <header className="topbar"><button className="mobile-menu icon-button" onClick={()=>setMenuOpen(!menuOpen)} aria-label="打开菜单">{menuOpen?<X size={20}/>:<Menu size={20}/>}</button><div className="breadcrumbs">我的行程 <ChevronRight size={14}/> <span>{trip.title}</span></div><div className="top-actions"><button className={'icon-button save-button '+(saved?'is-saved':'')} onClick={()=>setSaved(!saved)} aria-label={saved?'取消收藏':'收藏行程'}><Bookmark size={17} fill={saved?'currentColor':'none'}/></button><button className="share-button" onClick={share}><Share2 size={15}/>分享行程</button></div></header>
-      <div className="content-wrap">
+      <header className="topbar"><button className="mobile-menu icon-button" onClick={()=>setMenuOpen(!menuOpen)} aria-label="打开菜单">{menuOpen?<X size={20}/>:<Menu size={20}/>}</button><div className="breadcrumbs">我的行程 <ChevronRight size={14}/> <span>{trip.title}</span></div><div className="top-actions"><button className={'icon-button save-button '+(trip.isFavorite?'is-saved':'')} onClick={toggleFavorite} aria-label={trip.isFavorite?'取消收藏':'收藏行程'}><Bookmark size={17} fill={trip.isFavorite?'currentColor':'none'}/></button><button className="share-button" onClick={share}><Share2 size={15}/>分享行程</button></div></header>
+      <div className="content-wrap">{view==='favorites'?<section className="favorites-view"><div className="favorites-heading"><div><span>已保存的旅程</span><h1>收藏夹</h1><p>把想去的地方收在一起，随时继续规划。</p></div></div>{trips.filter(t=>t.isFavorite).length?<div className="favorite-grid">{trips.filter(t=>t.isFavorite).map(t=><button className="favorite-card" key={t.id} onClick={()=>chooseTrip(t.id)}><span className="favorite-card-icon"><Bookmark size={18} fill="currentColor"/></span><span className="favorite-card-copy"><b>{t.title}</b><small>{t.origin||'出发地'} → {t.destination||'目的地'} · {t.days.length} 天</small><small>{t.days.reduce((n,d)=>n+(d.spots?.length||0),0)} 个停留点</small></span><ChevronRight size={17}/></button>)}</div>:<div className="favorites-empty"><Bookmark size={25}/><b>还没有收藏的行程</b><span>打开一份行程，点击右上角书签即可收藏。</span><button onClick={()=>setView('trips')}>浏览我的行程</button></div>}</section>:<>
         <section className="trip-heading"><div><h1>{trip.title}</h1><div className="trip-meta"><span><Clock3 size={15}/>{trip.startDate||'日期待定'} · {trip.days.length} 天</span><i/><span><MapPin size={15}/>{trip.origin||'出发地'} → {trip.destination||'目的地'}</span><i/><span>{trip.focus||'自由探索'}</span></div></div><div className="trip-heading-actions"><button className="edit-button" onClick={()=>setDialog({type:'editTrip',trip})}>编辑行程 <Pencil size={14}/></button><button className="generate-button" title="重新生成高德路线" aria-label="重新生成高德路线" onClick={()=>generateRoute()} disabled={generating}><Sparkles size={15}/>{generating?'正在生成…':'重新生成路线'}</button></div></section>
         <section className="day-tabs" aria-label="选择游览日期">{trip.days.map((d,i)=><button className={'day-tab '+(day===i?'active':'')} onClick={()=>chooseDay(i)} key={i}><span className="day-number">{String(i+1).padStart(2,'0')}</span><span className="day-tab-copy"><b>{d.label}</b><small>{d.date}</small></span>{day===i&&<span className="tab-marker"/>}</button>)}</section>
         <div className="workspace-grid">
@@ -164,12 +178,14 @@ function App(){
         </div>
         <section className="lower-grid"><div className="weather-block"><div className="lower-icon weather-icon"><CloudSun size={21}/></div><div><div className="lower-label">{trip.title.split(/[，,：:]/)[0]} · {dateSummary}</div><div className="weather-main">{current.weather}<span>{current.temp}</span></div><small>天气信息为行程备注，可按实际预报调整</small></div></div><div className="food-block"><div className="lower-icon food-icon"><Utensils size={20}/></div><div><div className="lower-label">路上吃什么</div><div className="food-main">{foodSummary?foodSummary.name:'还没有安排美食'}<span>{foodSummary?'当地风味':'可以添加餐馆或小吃'}</span></div><small>{foodSummary?foodSummary.detail:'点击“添加地点”加入一处美食停留'}</small></div></div></section>
         <footer className="page-footer"><span>好风景，慢慢走。</span><button onClick={share}>分享这份行程 <ArrowUpRight size={14}/></button></footer>
-      </div>
+      </> }</div>
     </main>
     {mapOpen&&<div className="map-modal" role="dialog" aria-modal="true" aria-label="路线地图"><div className="map-modal-header"><div><b>{current.label} · 路线地图</b><small>{current.date}</small></div><button onClick={()=>setMapOpen(false)} aria-label="关闭地图"><X size={19}/></button></div><MapCanvas spots={displaySpots} selected={selected} onSelect={setSelected} day={day} city={trip.destination}/></div>}
+    {profileOpen&&<ProfileDialog profile={profile} onClose={()=>setProfileOpen(false)} onSave={saveProfile}/>}
     {dialog&&<PlannerDialog key={dialog.type+(dialog.spot?.id||dialog.trip?.id||'new')} dialog={dialog} onClose={()=>setDialog(null)} onSave={saveDialog}/>}
     {notice&&<div className="toast"><Check size={16}/>{notice}</div>}
   </div>
 }
 
 createRoot(document.getElementById('root')).render(<App/>);
+
