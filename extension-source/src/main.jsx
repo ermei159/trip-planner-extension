@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MapPin, Compass, Bookmark, Plus, Share2, CloudSun, ChevronDown, ChevronRight, Clock3, Utensils, TrainFront, MoreHorizontal, ArrowUpRight, Check, Search, Menu, X, Pencil, Trash2 } from 'lucide-react';
+import { MapPin, Compass, Bookmark, Plus, Share2, CloudSun, ChevronRight, Clock3, Utensils, TrainFront, MoreHorizontal, ArrowUpRight, Check, Search, Menu, X, Pencil, Trash2, Sparkles, Settings } from 'lucide-react';
 import './styles.css';
 
 const days = [
@@ -26,13 +26,13 @@ const days = [
   ]},
 ];
 
-function MapCanvas({ spots, selected, onSelect, day }) {
+function MapCanvas({ spots, selected, onSelect, day, city }) {
   const [zoom,setZoom]=useState(1);
   const mapDay=Math.min(day,2);
   const mapCopy = [
-    ['西湖','北山街','南山路','灵隐路'],
-    ['上城区','河坊街','中山中路','吴山路'],
-    ['京杭大运河','大兜路','桥弄街','拱宸桥'],
+    [city||'城市路线','游览区域','沿途地点','行程示意'],
+    [city||'城市路线','游览区域','沿途地点','行程示意'],
+    [city||'城市路线','游览区域','沿途地点','行程示意'],
   ][mapDay];
   return <div className={`map-canvas map-day-${day}`} aria-label="当天景点路线示意图">
     <div className="map-surface" style={{transform:`scale(${zoom})`}}>
@@ -45,32 +45,39 @@ function MapCanvas({ spots, selected, onSelect, day }) {
     {spots.map((spot,i)=><button key={spot.id||spot.name} className={`map-pin ${selected===i?'active':''} ${spot.type}`} style={{left:`${spot.x}%`,top:`${spot.y}%`}} onClick={()=>onSelect(i)} aria-label={`查看${spot.name}`}><span>{i+1}</span></button>)}
     </div>
     <div className="map-controls"><button aria-label="放大" onClick={()=>setZoom(z=>Math.min(1.45,z+.15))}>＋</button><button aria-label="缩小" onClick={()=>setZoom(z=>Math.max(1,z-.15))}>−</button><button className="locate" aria-label="重置地图" onClick={()=>setZoom(1)}><Compass size={16}/></button></div>
-    <div className="map-attribution">行程示意图</div>
+    <div className="map-attribution">路线分布示意</div>
   </div>
 }
 
 function makeId(){return typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random().toString(16).slice(2)}
 function makeBlankDay(i){return {label:'第'+(i+1)+'天',date:'第'+(i+1)+'天 · 日期待定',weather:'待查询',temp:'--',spots:[]}}
+function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 const defaultTrips=[
-  {id:'hangzhou',title:'杭州，三日慢游',origin:'大连',focus:'历史与美食',days:days.map((d,di)=>({...d,spots:d.spots.map((s,si)=>({...s,id:'hz-'+di+'-'+si}))}))},
-  {id:'kyoto',title:'京都秋日散步',origin:'',focus:'城市漫步',days:[makeBlankDay(0)]}
+  {id:'hangzhou',title:'杭州，三日慢游',origin:'大连',destination:'杭州',startDate:'2026-10-15',transportMode:'walking',focus:'历史与美食',days:days.map((d,di)=>({...d,spots:d.spots.map((s,si)=>({...s,id:'hz-'+di+'-'+si}))}))},
+  {id:'kyoto',title:'京都秋日散步',origin:'',destination:'京都',startDate:today(),transportMode:'walking',focus:'城市漫步',days:[makeBlankDay(0)]}
 ];
 function loadTrips(){
-  try{const saved=JSON.parse(localStorage.getItem('xingjian-trips')||'null');if(Array.isArray(saved)&&saved.length)return saved}catch{}
+  try{const saved=JSON.parse(localStorage.getItem('xingjian-trips')||'null');if(Array.isArray(saved)&&saved.length)return saved.map(t=>({...t,destination:t.destination||t.title.match(/^(.+?)(?:一日游|二日游|三日游|周末游|慢游|旅行|旅游)/)?.[1]||t.title.split(/[，,：:\s]/)[0]||'',startDate:t.startDate||today(),transportMode:t.transportMode||'walking',days:(t.days||[makeBlankDay(0)]).map((d,i)=>({...d,label:d.label||('第'+(i+1)+'天'),date:d.date||('第'+(i+1)+'天 · 日期待定'),spots:(d.spots||[]).map((s,j)=>({...s,id:s.id||'legacy-'+i+'-'+j}))}))}))}catch{}
   return defaultTrips;
 }
 
+function runtimeMessage(message){
+  if(!globalThis.chrome?.runtime?.id)return Promise.resolve({ok:false,code:'EXTENSION_REQUIRED',error:'高德路线生成需要在已安装的浏览器扩展中使用。'});
+  return new Promise(resolve=>chrome.runtime.sendMessage(message,response=>{const error=chrome.runtime.lastError;resolve(error?{ok:false,error:error.message}:response||{ok:false,error:'扩展没有返回结果。'})}));
+}
+
 function PlannerDialog({dialog,onClose,onSave}){
-  const initial=dialog.type==='create'?{title:'',origin:'',focus:'历史与美食',dayCount:3}:dialog.type==='editTrip'?{title:dialog.trip.title,origin:dialog.trip.origin||'',focus:dialog.trip.focus||'',dayLabels:dialog.trip.days.map(d=>d.label).join('\n')}:{name:dialog.spot.name,time:dialog.spot.time,detail:dialog.spot.detail,tag:dialog.spot.tag,type:dialog.spot.type};
+  const isSpot=dialog.type==='editSpot'||dialog.type==='addSpot';
+  const initial=dialog.type==='create'?{title:'',origin:'',destination:'',focus:'历史与美食',startDate:today(),dayCount:3,transportMode:'walking'}:dialog.type==='editTrip'?{title:dialog.trip.title,origin:dialog.trip.origin||'',destination:dialog.trip.destination||'',focus:dialog.trip.focus||'',startDate:dialog.trip.startDate||today(),dayLabels:dialog.trip.days.map(d=>d.label).join('\n'),transportMode:dialog.trip.transportMode||'walking'}:dialog.type==='apiSettings'?{apiKey:''}:{name:dialog.spot?.name||'',time:dialog.spot?.time||'09:00',detail:dialog.spot?.detail||'',tag:dialog.spot?.tag||'',type:dialog.spot?.type||'temple'};
   const [form,setForm]=useState(initial);
   const change=(key,value)=>setForm(old=>({...old,[key]:value}));
   useEffect(()=>{const esc=e=>{if(e.key==='Escape')onClose()};window.addEventListener('keydown',esc);return()=>window.removeEventListener('keydown',esc)},[onClose]);
-  const isSpot=dialog.type==='editSpot';
-  const title=dialog.type==='create'?'创建新行程':dialog.type==='editTrip'?'编辑行程':'编辑地点';
+  const title=dialog.type==='create'?'创建行程并生成路线':dialog.type==='editTrip'?'编辑行程':dialog.type==='apiSettings'?'设置高德 API':'地点信息';
   return <div className="dialog-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><section className="planner-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><header><div><small>行间 · 行程工作台</small><h2 id="dialog-title">{title}</h2></div><button type="button" className="dialog-close" onClick={onClose} aria-label="关闭"><X size={19}/></button></header><form onSubmit={e=>{e.preventDefault();onSave(form)}}><div className="dialog-fields">
-    {isSpot?<><label>地点名称<input required autoFocus maxLength="40" value={form.name} onChange={e=>change('name',e.target.value)} placeholder="例如：灵隐寺"/></label><div className="dialog-row"><label>到达时间<input type="time" value={form.time} onChange={e=>change('time',e.target.value)}/></label><label>地点类型<select value={form.type} onChange={e=>change('type',e.target.value)}><option value="temple">历史景点</option><option value="lake">街区 / 风景</option><option value="food">美食停留</option></select></label></div><label>地址与备注<textarea rows="3" value={form.detail} onChange={e=>change('detail',e.target.value)} placeholder="地址、建议停留时间等"/></label><label>标签<input maxLength="20" value={form.tag} onChange={e=>change('tag',e.target.value)} placeholder="例如：历史古迹"/></label></>
-    :<><label>行程名称<input required autoFocus maxLength="40" value={form.title} onChange={e=>change('title',e.target.value)} placeholder="例如：杭州周末慢游"/></label><div className="dialog-row"><label>出发地<input maxLength="30" value={form.origin} onChange={e=>change('origin',e.target.value)} placeholder="例如：大连"/></label><label>旅行主题<input maxLength="30" value={form.focus} onChange={e=>change('focus',e.target.value)} placeholder="历史与美食"/></label></div>{dialog.type==='create'?<label>行程天数<select value={form.dayCount} onChange={e=>change('dayCount',Number(e.target.value))}>{[1,2,3,4,5,6,7].map(n=><option value={n} key={n}>{n} 天</option>)}</select></label>:<label>每天的标题<textarea rows="4" value={form.dayLabels} onChange={e=>change('dayLabels',e.target.value)} placeholder="每行填写一天的标题"/><small className="field-help">每行对应一天，可修改每天的名称。</small></label>}</>}
-    </div><footer><button type="button" className="dialog-cancel" onClick={onClose}>取消</button><button type="submit" className="dialog-save">保存</button></footer></form></section></div>
+    {dialog.type==='apiSettings'?<><label>高德 Web 服务 API Key<input required autoFocus type="password" autoComplete="off" value={form.apiKey} onChange={e=>change('apiKey',e.target.value)} placeholder="粘贴你申请的 Web 服务 Key"/></label><p className="api-key-note">Key 只保存在此浏览器扩展的本地存储中，不会写入项目文件或上传到 GitHub。请使用“Web 服务”类型的 Key。</p><a className="api-doc-link" href="https://lbs.amap.com/" target="_blank" rel="noreferrer">前往高德开放平台申请 Key ↗</a></>
+    :isSpot?<><label>地点名称<input required autoFocus maxLength="40" value={form.name} onChange={e=>change('name',e.target.value)} placeholder="例如：滕王阁"/></label><div className="dialog-row"><label>到达时间<input type="time" value={form.time} onChange={e=>change('time',e.target.value)}/></label><label>地点类型<select value={form.type} onChange={e=>change('type',e.target.value)}><option value="temple">历史景点</option><option value="lake">街区 / 风景</option><option value="food">美食停留</option></select></label></div><label>地址与备注<textarea rows="3" value={form.detail} onChange={e=>change('detail',e.target.value)} placeholder="地址、建议停留时间等"/></label><label>标签<input maxLength="40" value={form.tag} onChange={e=>change('tag',e.target.value)} placeholder="例如：历史古迹"/></label></>
+    :<><label>行程名称<input required autoFocus maxLength="40" value={form.title} onChange={e=>change('title',e.target.value)} placeholder="例如：南昌一日游"/></label><div className="dialog-row"><label>出发地<input required maxLength="40" value={form.origin} onChange={e=>change('origin',e.target.value)} placeholder="例如：大连"/></label><label>目的地城市<input required maxLength="40" value={form.destination} onChange={e=>change('destination',e.target.value)} placeholder="例如：南昌"/></label></div><div className="dialog-row"><label>出发日期<input required type="date" value={form.startDate} onChange={e=>change('startDate',e.target.value)}/></label><label>旅行主题<input maxLength="30" value={form.focus} onChange={e=>change('focus',e.target.value)} placeholder="历史与美食"/></label></div>{dialog.type==='create'?<><div className="dialog-row"><label>行程天数<select value={form.dayCount} onChange={e=>change('dayCount',Number(e.target.value))}>{[1,2,3,4,5,6,7].map(n=><option value={n} key={n}>{n} 天</option>)}</select></label><label>市内交通<select value={form.transportMode} onChange={e=>change('transportMode',e.target.value)}><option value="walking">步行优先</option><option value="driving">驾车优先</option></select></label></div><p className="api-key-note">保存后会调用高德搜索目的地景点和美食，并按地点距离规划每天顺序。</p></>:<><div className="dialog-row"><label>市内交通<select value={form.transportMode} onChange={e=>change('transportMode',e.target.value)}><option value="walking">步行优先</option><option value="driving">驾车优先</option></select></label><span/></div><label>每天的标题<textarea rows="3" value={form.dayLabels} onChange={e=>change('dayLabels',e.target.value)} placeholder="每行填写一天的标题"/><small className="field-help">修改目的地或日期后，可点击“重新生成高德路线”刷新地点。</small></label></>}</>}
+    </div><footer><button type="button" className="dialog-cancel" onClick={onClose}>取消</button><button type="submit" className="dialog-save">{dialog.type==='create'?'生成路线':dialog.type==='apiSettings'?'保存 Key':dialog.type==='addSpot'?'添加地点':'保存'}</button></footer></form></section></div>
 }
 
 function App(){
@@ -81,33 +88,61 @@ function App(){
   const [saved,setSaved]=useState(false);
   const [notice,setNotice]=useState('');
   const [menuOpen,setMenuOpen]=useState(false);
-  const [adding,setAdding]=useState(false);
   const [mapOpen,setMapOpen]=useState(false);
   const [dialog,setDialog]=useState(null);
+  const [apiConfigured,setApiConfigured]=useState(false);
+  const [generating,setGenerating]=useState(false);
+  const [pendingRoute,setPendingRoute]=useState(null);
   const trip=trips.find(t=>t.id===tripId)||trips[0];
   const day=Math.min(dayIndex,trip.days.length-1);
   const current=trip.days[day];
   const displaySpots=current.spots||[];
+  useEffect(()=>{runtimeMessage({type:'GET_AMAP_CONFIG'}).then(result=>setApiConfigured(Boolean(result.ok&&result.configured)))},[]);
   function notify(message){setNotice(message);window.clearTimeout(notify.timer);notify.timer=window.setTimeout(()=>setNotice(''),2300)}
   function persist(next,message){setTrips(next);try{localStorage.setItem('xingjian-trips',JSON.stringify(next))}catch{}if(message)notify(message)}
-  function chooseTrip(id){setTripId(id);setDayIndex(0);setSelected(0);setAdding(false);setMenuOpen(false)}
-  function chooseDay(i){setDayIndex(i);setSelected(0);setAdding(false)}
+  function chooseTrip(id){setTripId(id);setDayIndex(0);setSelected(0);setMenuOpen(false)}
+  function chooseDay(i){setDayIndex(i);setSelected(0)}
   function updateTrip(id,updater,message){persist(trips.map(t=>t.id===id?updater(t):t),message)}
   function updateDay(dayNo,updater,message){updateTrip(trip.id,t=>({...t,days:t.days.map((d,i)=>i===dayNo?updater(d):d)}),message)}
-  function addPlace(name,detail){
-    const spot={id:makeId(),time:'18:00',name,detail,tag:'顺路推荐',type:'lake',x:68+(displaySpots.length%3)*7,y:74+(displaySpots.length%2)*7};
-    updateDay(day,d=>({...d,spots:[...d.spots,spot]}),name+'已加入行程');setSelected(displaySpots.length);setAdding(false);
+  async function generateRoute(target=trip,base=trips){
+    if(!target.destination){notify('请先编辑行程并填写目的地城市。');setDialog({type:'editTrip',trip:target});return}
+    const config=await runtimeMessage({type:'GET_AMAP_CONFIG'});
+    if(!config.ok){notify(config.error||'请在已安装的浏览器扩展中使用高德路线生成。');return}
+    setApiConfigured(Boolean(config.configured));
+    if(!config.configured){setPendingRoute({target,base});setDialog({type:'apiSettings'});return}
+    setGenerating(true);notify('正在查询高德景点并规划路线…');
+    try{
+      const response=await runtimeMessage({type:'GENERATE_ROUTE',trip:{...target,dayCount:target.dayCount||target.days.length}});
+      if(!response.ok){
+        if(response.code==='KEY_REQUIRED'){setPendingRoute({target,base});setDialog({type:'apiSettings'});}
+        notify(response.error||'路线生成失败，请稍后重试。');return;
+      }
+      const updated=base.map(t=>t.id===target.id?{...t,days:response.days,generatedAt:new Date().toISOString()}:t);
+      persist(updated,'已根据高德数据生成 '+response.days.length+' 天路线');
+      setTripId(target.id);setDayIndex(0);setSelected(0);
+    }catch(error){notify(error.message||'路线生成失败，请稍后重试。')}
+    finally{setGenerating(false)}
   }
-  function saveDialog(form){
+  async function saveDialog(form){
+    if(dialog.type==='apiSettings'){
+      const response=await runtimeMessage({type:'SAVE_AMAP_CONFIG',apiKey:form.apiKey});
+      if(!response.ok){notify(response.error||'保存高德 Key 失败');return}
+      setApiConfigured(true);setDialog(null);notify('高德 Key 已安全保存在此扩展中');
+      if(pendingRoute){const pending=pendingRoute;setPendingRoute(null);await generateRoute(pending.target,pending.base)}
+      return;
+    }
     if(dialog.type==='create'){
       const count=Math.max(1,Math.min(7,Number(form.dayCount)||1));
-      const created={id:makeId(),title:form.title.trim(),origin:form.origin.trim(),focus:form.focus.trim()||'自由探索',days:Array.from({length:count},(_,i)=>makeBlankDay(i))};
-      const next=[created,...trips];persist(next,'新行程已创建');setTripId(created.id);setDayIndex(0);setSelected(0);
+      const created={id:makeId(),title:form.title.trim(),origin:form.origin.trim(),destination:form.destination.trim(),startDate:form.startDate,dayCount:count,transportMode:form.transportMode,focus:form.focus.trim()||'历史与美食',days:Array.from({length:count},(_,i)=>makeBlankDay(i))};
+      const next=[created,...trips];persist(next,'行程已创建，开始生成高德路线');setTripId(created.id);setDayIndex(0);setSelected(0);setDialog(null);await generateRoute(created,next);return;
     }else if(dialog.type==='editTrip'){
       const labels=form.dayLabels.split('\n').map(s=>s.trim());
-      updateTrip(trip.id,t=>({...t,title:form.title.trim(),origin:form.origin.trim(),focus:form.focus.trim(),days:t.days.map((d,i)=>({...d,label:labels[i]||d.label}))}),'行程信息已保存');
+      updateTrip(trip.id,t=>({...t,title:form.title.trim(),origin:form.origin.trim(),destination:form.destination.trim(),startDate:form.startDate,transportMode:form.transportMode,focus:form.focus.trim(),days:t.days.map((d,i)=>({...d,label:labels[i]||d.label}))}),'行程信息已保存');
     }else if(dialog.type==='editSpot'){
       updateDay(day,d=>({...d,spots:d.spots.map(s=>s.id===dialog.spot.id?({...s,...form,name:form.name.trim(),detail:form.detail.trim(),tag:form.tag.trim()}):s)}),'地点信息已保存');
+    }else if(dialog.type==='addSpot'){
+      const spot={...form,id:makeId(),name:form.name.trim(),detail:form.detail.trim(),tag:form.tag.trim(),x:68+(displaySpots.length%3)*7,y:74+(displaySpots.length%2)*7};
+      updateDay(day,d=>({...d,spots:[...d.spots,spot]}),spot.name+'已加入行程');
     }
     setDialog(null);
   }
@@ -124,31 +159,30 @@ function App(){
       <div className="side-label">工作空间</div>
       <nav className="main-nav"><button className="nav-item selected"><Compass size={18}/><span>我的行程</span><span className="nav-count">{trips.length}</span></button><button className="nav-item" onClick={()=>notify('灵感推荐即将开放')}><Search size={18}/><span>发现灵感</span></button><button className="nav-item" onClick={()=>notify('请在行程中点击书签收藏')}><Bookmark size={18}/><span>收藏夹</span></button></nav>
       <div className="side-separator"/><div className="side-label">最近计划</div>
-      {trips.map((t,i)=><button key={t.id} className={'recent-trip '+(t.id===trip.id?'current-trip':'')} onClick={()=>chooseTrip(t.id)}><span className={'trip-dot '+(i%2?'dot-blue':'')}/><span><b>{t.title}</b><small>{t.days.length} 天 · {t.origin?t.origin+'出发':'未填写出发地'}</small></span></button>)}
+      {trips.map((t,i)=><button key={t.id} className={'recent-trip '+(t.id===trip.id?'current-trip':'')} onClick={()=>chooseTrip(t.id)}><span className={'trip-dot '+(i%2?'dot-blue':'')}/><span><b>{t.title}</b><small>{t.origin||'出发地'} → {t.destination||'目的地'} · {t.days.length} 天</small></span></button>)}
       <button className="new-trip" onClick={()=>setDialog({type:'create'})}><Plus size={16}/> 创建新行程</button>
       <div className="sidebar-bottom"><div className="avatar">林</div><div><b>我的行程</b><small>保存在此浏览器</small></div><MoreHorizontal size={18}/></div>
     </aside>
     {menuOpen&&<button className="scrim" onClick={()=>setMenuOpen(false)} aria-label="关闭菜单"/>}
     <main id="top" className="main-area">
-      <header className="topbar"><button className="mobile-menu icon-button" onClick={()=>setMenuOpen(!menuOpen)} aria-label="打开菜单">{menuOpen?<X size={20}/>:<Menu size={20}/>}</button><div className="breadcrumbs">我的行程 <ChevronRight size={14}/> <span>{trip.title}</span></div><div className="top-actions"><button className={'icon-button save-button '+(saved?'is-saved':'')} onClick={()=>setSaved(!saved)} aria-label={saved?'取消收藏':'收藏行程'}><Bookmark size={17} fill={saved?'currentColor':'none'}/></button><button className="share-button" onClick={share}><Share2 size={15}/>分享行程</button></div></header>
+      <header className="topbar"><button className="mobile-menu icon-button" onClick={()=>setMenuOpen(!menuOpen)} aria-label="打开菜单">{menuOpen?<X size={20}/>:<Menu size={20}/>}</button><div className="breadcrumbs">我的行程 <ChevronRight size={14}/> <span>{trip.title}</span></div><div className="top-actions"><button className="gaode-settings" onClick={()=>setDialog({type:'apiSettings'})} title={apiConfigured?'高德 API 已配置':'配置高德 API'}><Settings size={15}/><span>高德设置</span>{apiConfigured&&<i/>}</button><button className={'icon-button save-button '+(saved?'is-saved':'')} onClick={()=>setSaved(!saved)} aria-label={saved?'取消收藏':'收藏行程'}><Bookmark size={17} fill={saved?'currentColor':'none'}/></button><button className="share-button" onClick={share}><Share2 size={15}/>分享行程</button></div></header>
       <div className="content-wrap">
-        <section className="trip-heading"><div><h1>{trip.title}</h1><div className="trip-meta"><span><Clock3 size={15}/>{trip.days.length} 天行程</span><i/><span><MapPin size={15}/>{trip.origin?trip.origin+'出发':'出发地待填写'}</span><i/><span>{trip.focus||'自由探索'}</span></div></div><button className="edit-button" onClick={()=>setDialog({type:'editTrip',trip})}>编辑行程 <Pencil size={14}/></button></section>
+        <section className="trip-heading"><div><h1>{trip.title}</h1><div className="trip-meta"><span><Clock3 size={15}/>{trip.startDate||'日期待定'} · {trip.days.length} 天</span><i/><span><MapPin size={15}/>{trip.origin||'出发地'} → {trip.destination||'目的地'}</span><i/><span>{trip.focus||'自由探索'}</span></div></div><div className="trip-heading-actions"><button className="edit-button" onClick={()=>setDialog({type:'editTrip',trip})}>编辑行程 <Pencil size={14}/></button><button className="generate-button" title="重新生成高德路线" aria-label="重新生成高德路线" onClick={()=>generateRoute()} disabled={generating}><Sparkles size={15}/>{generating?'正在生成…':'重新生成路线'}</button></div></section>
         <section className="day-tabs" aria-label="选择游览日期">{trip.days.map((d,i)=><button className={'day-tab '+(day===i?'active':'')} onClick={()=>chooseDay(i)} key={i}><span className="day-number">{String(i+1).padStart(2,'0')}</span><span className="day-tab-copy"><b>{d.label}</b><small>{d.date}</small></span>{day===i&&<span className="tab-marker"/>}</button>)}</section>
         <div className="workspace-grid">
           <section className="itinerary-panel">
-            <div className="section-heading"><div><h2>今日路线</h2><p>{current.date} <span>·</span> {displaySpots.length} 个停留点</p></div><button className="more-button" aria-label="添加地点" onClick={()=>setAdding(!adding)}><MoreHorizontal size={20}/></button></div>
-            <div className="route-list">{displaySpots.length===0?<p className="empty-route">这一天还没有安排地点，点击下方“添加地点”开始规划。</p>:displaySpots.map((spot,i)=><React.Fragment key={spot.id||spot.name+'-'+i}><div className={'stop-row '+(selected===i?'chosen':'')}><span className="stop-time">{spot.time}</span><span className="timeline"><span className={'stop-marker '+spot.type}>{spot.type==='food'?<Utensils size={13}/>:<span>{i+1}</span>}</span>{i<displaySpots.length-1&&<i className="connector"/>}</span><button className="stop-content" onClick={()=>setSelected(i)}><b>{spot.name}</b><small>{spot.detail}</small></button><span className="stop-tag">{spot.tag}</span><div className="stop-actions"><button type="button" aria-label={'编辑'+spot.name} title="编辑地点" onClick={()=>setDialog({type:'editSpot',spot})}><Pencil size={14}/></button><button type="button" className="delete-stop" aria-label={'删除'+spot.name} title="删除地点" onClick={()=>removeSpot(spot)}><Trash2 size={14}/></button></div></div>{i===1&&<button className="add-stop" onClick={()=>setAdding(!adding)}><Plus size={14}/>添加一个停留点</button>}</React.Fragment>)}</div>
-            {adding&&<div className="add-picker"><div>顺路加入</div><button onClick={()=>addPlace('中国茶叶博物馆','龙井路双峰 · 了解杭州茶文化')}>中国茶叶博物馆 <span>历史与茶文化</span></button><button onClick={()=>addPlace(day===2?'香积寺':'城隍阁',day===2?'大兜路 · 运河古寺':'吴山之巅 · 俯瞰老城')}>{day===2?'香积寺':'城隍阁'} <span>附近人文景点</span></button></div>}
-            <button className="add-to-route" onClick={()=>setAdding(!adding)}><Plus size={16}/>{adding?'收起推荐':'添加地点'}</button>
-            <div className="origin-note"><TrainFront size={16}/><span>{trip.origin||'出发地待填写'}</span><span className="origin-divider"/>{trip.title.split(/[，,：:]/)[0]}行程 · 可在“编辑行程”中修改</div>
+            <div className="section-heading"><div><h2>今日路线</h2><p>{current.date} <span>·</span> {displaySpots.length} 个停留点</p></div><button className="more-button" aria-label="手动添加地点" title="手动添加地点" onClick={()=>setDialog({type:'addSpot'})}><Plus size={18}/></button></div>
+            <div className="route-list">{displaySpots.length===0?<p className="empty-route">还没有路线。填写出发地、目的地和日期后，点击“生成高德路线”。</p>:displaySpots.map((spot,i)=><React.Fragment key={spot.id||spot.name+'-'+i}><div className={'stop-row '+(selected===i?'chosen':'')}><span className="stop-time">{spot.time}</span><span className="timeline"><span className={'stop-marker '+spot.type}>{spot.type==='food'?<Utensils size={13}/>:<span>{i+1}</span>}</span>{i<displaySpots.length-1&&<i className="connector"/>}</span><button className="stop-content" onClick={()=>setSelected(i)}><b>{spot.name}</b><small>{spot.detail}</small></button><span className="stop-tag">{spot.tag}</span><div className="stop-actions"><button type="button" aria-label={'编辑'+spot.name} title="编辑地点" onClick={()=>setDialog({type:'editSpot',spot})}><Pencil size={14}/></button><button type="button" className="delete-stop" aria-label={'删除'+spot.name} title="删除地点" onClick={()=>removeSpot(spot)}><Trash2 size={14}/></button></div></div>{i===1&&<button className="add-stop" onClick={()=>setDialog({type:'addSpot'})}><Plus size={14}/>手动添加一个停留点</button>}</React.Fragment>)}</div>
+            <button className="add-to-route" onClick={()=>setDialog({type:'addSpot'})}><Plus size={16}/>手动添加地点</button>
+            <div className="origin-note"><TrainFront size={16}/><span>{trip.origin||'出发地待填写'}</span><span className="origin-divider"/>{trip.destination||'填写目的地后生成路线'} · {trip.startDate||'日期待定'}</div>
           </section>
-          <section className="map-section"><div className="map-title"><div><h2>路线地图</h2><p>按地理位置安排游览顺序</p></div><button className="map-expand" aria-label="展开地图" onClick={()=>setMapOpen(true)}><ArrowUpRight size={17}/></button></div><MapCanvas spots={displaySpots} selected={selected} onSelect={setSelected} day={day}/><div className="map-legend"><span><i className="legend-dot history"/>历史景点</span><span><i className="legend-dot food"/>美食停留</span><span className="route-distance">路线顺序</span></div></section>
+          <section className="map-section"><div className="map-title"><div><h2>路线地图</h2><p>高德地点数据 · 路线顺序示意</p></div><button className="map-expand" aria-label="展开地图" onClick={()=>setMapOpen(true)}><ArrowUpRight size={17}/></button></div><MapCanvas spots={displaySpots} selected={selected} onSelect={setSelected} day={day} city={trip.destination}/><div className="map-legend"><span><i className="legend-dot history"/>景点</span><span><i className="legend-dot food"/>美食</span><span className="route-distance">按距离排序</span></div></section>
         </div>
         <section className="lower-grid"><div className="weather-block"><div className="lower-icon weather-icon"><CloudSun size={21}/></div><div><div className="lower-label">{trip.title.split(/[，,：:]/)[0]} · {dateSummary}</div><div className="weather-main">{current.weather}<span>{current.temp}</span></div><small>天气信息为行程备注，可按实际预报调整</small></div></div><div className="food-block"><div className="lower-icon food-icon"><Utensils size={20}/></div><div><div className="lower-label">路上吃什么</div><div className="food-main">{foodSummary?foodSummary.name:'还没有安排美食'}<span>{foodSummary?'当地风味':'可以添加餐馆或小吃'}</span></div><small>{foodSummary?foodSummary.detail:'点击“添加地点”加入一处美食停留'}</small></div></div></section>
         <footer className="page-footer"><span>好风景，慢慢走。</span><button onClick={share}>分享这份行程 <ArrowUpRight size={14}/></button></footer>
       </div>
     </main>
-    {mapOpen&&<div className="map-modal" role="dialog" aria-modal="true" aria-label="路线地图"><div className="map-modal-header"><div><b>{current.label} · 路线地图</b><small>{current.date}</small></div><button onClick={()=>setMapOpen(false)} aria-label="关闭地图"><X size={19}/></button></div><MapCanvas spots={displaySpots} selected={selected} onSelect={setSelected} day={day}/></div>}
+    {mapOpen&&<div className="map-modal" role="dialog" aria-modal="true" aria-label="路线地图"><div className="map-modal-header"><div><b>{current.label} · 路线地图</b><small>{current.date}</small></div><button onClick={()=>setMapOpen(false)} aria-label="关闭地图"><X size={19}/></button></div><MapCanvas spots={displaySpots} selected={selected} onSelect={setSelected} day={day} city={trip.destination}/></div>}
     {dialog&&<PlannerDialog key={dialog.type+(dialog.spot?.id||dialog.trip?.id||'new')} dialog={dialog} onClose={()=>setDialog(null)} onSave={saveDialog}/>}
     {notice&&<div className="toast"><Check size={16}/>{notice}</div>}
   </div>

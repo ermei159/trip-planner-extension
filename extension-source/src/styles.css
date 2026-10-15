@@ -40,3 +40,14 @@
 .dialog-save{border:1px solid #355f53;background:#355f53;color:#fff;font-weight:600}
 .dialog-save:hover{background:#294e44}
 @media(max-width:560px){.stop-row{grid-template-columns:43px 25px minmax(0,1fr) 54px;min-height:68px}.stop-tag{display:none}.stop-actions{opacity:1}.stop-actions button{width:25px}.stop-content{padding-left:7px}.empty-route{margin-left:65px}.planner-dialog{padding:20px 17px}.dialog-row{grid-template-columns:1fr}.planner-dialog>header h2{font-size:20px}}
+.trip-heading-actions{display:flex;align-items:center;gap:8px;flex:none}
+.generate-button{height:34px;border:1px solid #355f53;background:#355f53;color:white;border-radius:6px;padding:0 12px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;font-weight:600;white-space:nowrap}
+.generate-button:hover:not(:disabled){background:#294e44}
+.generate-button:disabled{opacity:.65;cursor:wait}
+.gaode-settings{height:34px;padding:0 10px;border:1px solid #e3e8e3;border-radius:6px;background:#fff;color:#617068;display:flex;align-items:center;gap:6px;font-size:10px;white-space:nowrap}
+.gaode-settings:hover{border-color:#9cb5a8;color:#315e52}
+.gaode-settings i{width:6px;height:6px;border-radius:50%;background:#639374}
+.planner-dialog .api-key-note{margin:0;color:#7d8a82;font-size:10px;font-weight:400;line-height:1.7}
+.api-doc-link{color:#3d705d;font-size:11px;text-decoration:underline;text-underline-offset:3px}
+.dialog-save{display:inline-flex;align-items:center;justify-content:center}
+@media(max-width:560px){.trip-heading-actions{flex-direction:column;align-items:flex-end;gap:6px}.generate-button{width:34px;padding:0;font-size:0}.generate-button svg{width:16px}.gaode-settings{height:32px;width:32px;padding:0;justify-content:center}.gaode-settings span{display:none}.top-actions{gap:5px}}
